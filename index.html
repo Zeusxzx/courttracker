@@ -1,0 +1,802 @@
+<!-- OBS Browser Source: 1280x720, check "Shutdown source when not visible" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>Live Shot Chart</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #111;
+    width: 1280px;
+    height: 720px;
+    overflow: hidden;
+    font-family: 'Arial', sans-serif;
+    user-select: none;
+  }
+  #canvas { position: absolute; top: 0; left: 0; display: block; }
+
+  /* â”€â”€ Header â”€â”€ */
+  #header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 72px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    pointer-events: none;
+  }
+  .team-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 220px;
+  }
+  .team-abbr {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+  .team-score {
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  }
+  #vs-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 28px;
+    min-width: 120px;
+  }
+  #period-label {
+    font-size: 13px;
+    color: #aaa;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  #clock-label {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  /* â”€â”€ Legend â”€â”€ */
+  #legend {
+    position: absolute;
+    top: 80px;
+    left: 20px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 6px;
+    padding: 8px 12px;
+    pointer-events: none;
+    line-height: 1.6;
+  }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #ccc;
+  }
+  .legend-dot-filled {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #aaa;
+    flex-shrink: 0;
+  }
+  .legend-dot-hollow {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid #aaa;
+    flex-shrink: 0;
+  }
+
+  /* â”€â”€ Ticker â”€â”€ */
+  #ticker {
+    position: absolute;
+    bottom: 44px;
+    left: 0; right: 0;
+    background: rgba(0,0,0,0.8);
+    border-top: 1px solid #2a2a2a;
+    padding: 7px 18px;
+    font-size: 14px;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+
+  /* â”€â”€ Controls â”€â”€ */
+  #controls {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 44px;
+    background: rgba(0,0,0,0.95);
+    border-top: 1px solid #1e1e1e;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+  }
+  #controls label { color: #666; font-size: 12px; }
+  .sport-btn {
+    padding: 4px 10px; font-size: 12px; color: #777;
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .sport-btn.active { background: #c8860a; color: #000; font-weight: bold; border-color: #c8860a; }
+  #game-select {
+    background: #1a1a1a; color: #ccc; border: 1px solid #2a2a2a;
+    border-radius: 4px; padding: 4px 8px; font-size: 12px; flex: 1;
+    max-width: 380px; cursor: pointer;
+  }
+  #start-stop {
+    padding: 5px 18px; border-radius: 4px; border: none;
+    font-size: 13px; font-weight: bold; cursor: pointer;
+    background: #1db954; color: #000; transition: background 0.15s;
+  }
+  #start-stop.stopped { background: #333; color: #999; }
+  #clear-btn {
+    padding: 5px 12px; border-radius: 4px; border: 1px solid #333;
+    font-size: 12px; cursor: pointer; background: #1a1a1a; color: #888;
+  }
+  #status-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #333; flex-shrink: 0;
+  }
+  #status-dot.live { background: #1db954; box-shadow: 0 0 6px #1db954; }
+  #status-dot.waiting { background: #f90; box-shadow: 0 0 6px #f90; }
+  #status-text { font-size: 11px; color: #555; min-width: 80px; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas" width="1280" height="720"></canvas>
+
+<div id="header">
+  <div class="team-block" id="team-away-block">
+    <span class="team-abbr" id="team-away-abbr" style="color:#fff">AWAY</span>
+    <span class="team-score" id="team-away-score">0</span>
+  </div>
+  <div id="vs-block">
+    <div id="period-label">â€”</div>
+    <div id="clock-label">0:00</div>
+  </div>
+  <div class="team-block" id="team-home-block">
+    <span class="team-abbr" id="team-home-abbr" style="color:#fff">HOME</span>
+    <span class="team-score" id="team-home-score">0</span>
+  </div>
+</div>
+
+<div id="legend">
+  <div class="legend-row"><div class="legend-dot-filled"></div> Shot Made</div>
+  <div class="legend-row"><div class="legend-dot-hollow"></div> Shot Missed</div>
+</div>
+
+<div id="ticker">Waiting for play-by-play dataâ€¦</div>
+
+<div id="controls">
+  <div style="display:flex;gap:4px">
+    <button class="sport-btn active" data-sport="nba">NBA</button>
+    <button class="sport-btn" data-sport="ncaa">NCAA</button>
+  </div>
+  <label>Game:</label>
+  <select id="game-select"><option value="">â€” select game â€”</option></select>
+  <button id="start-stop" class="stopped">â–¶ Start</button>
+  <button id="clear-btn">Clear</button>
+  <div id="status-dot"></div>
+  <span id="status-text">Idle</span>
+  <div style="flex:1"></div>
+  <span style="font-size:11px;color:#2a2a2a">Live Shot Chart v2.0</span>
+</div>
+
+<script>
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  ESPN API
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+const ESPN = {
+  nba: {
+    scoreboard: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+    summary: id => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${id}`
+  },
+  ncaa: {
+    scoreboard: 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
+    summary: id => `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=${id}`
+  }
+};
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  State
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+let sport = 'nba';
+let selectedGameId = null;
+let running = false;
+let pollTimer = null;
+let processedPlayIds = new Set();
+
+// Teams
+let homeTeam = { id: null, abbr: 'HOME', color: '#4a9eff', score: 0 };
+let awayTeam = { id: null, abbr: 'AWAY', color: '#ff4a4a', score: 0 };
+
+// Shot dots accumulate over game
+// { x, y, made, teamId, scoreValue, animT, animStart }
+let shots = [];
+
+// Scoring popups (burst animation near dot)
+let popups = []; // { x, y, text, color, startTime }
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Canvas + Court Layout
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = 1280, H = 720;
+
+// Court occupies most of the canvas, below header
+const COURT = {
+  x: 40,
+  y: 76,
+  w: 1200,
+  h: 600,
+  get cx() { return this.x + this.w / 2; },
+  get cy() { return this.y + this.h / 2; },
+
+  // ESPN full-court coords: x=0..100 (left baselineâ†’right baseline), y=0..50 (bottom sidelineâ†’top)
+  // Away team attacks left basket (x<50), Home team attacks right basket (x>50)
+  espnToCanvas(ex, ey) {
+    return {
+      x: this.x + (ex / 100) * this.w,
+      y: this.y + ((50 - ey) / 50) * this.h  // flip y so 0=bottom
+    };
+  }
+};
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Draw Court â€” ESPN aesthetic (tan floor, gray lines)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function drawCourt() {
+  const c = ctx;
+  const { x, y, w, h } = COURT;
+
+  // Floor
+  const floorGrad = c.createLinearGradient(x, y, x, y + h);
+  floorGrad.addColorStop(0, '#c8a96e');
+  floorGrad.addColorStop(0.5, '#c09050');
+  floorGrad.addColorStop(1, '#c8a96e');
+  c.fillStyle = floorGrad;
+  c.beginPath();
+  c.roundRect(x, y, w, h, 4);
+  c.fill();
+
+  // Floor boards (subtle horizontal lines)
+  c.save();
+  c.beginPath();
+  c.roundRect(x, y, w, h, 4);
+  c.clip();
+  c.strokeStyle = 'rgba(160,120,50,0.18)';
+  c.lineWidth = 1;
+  const boardH = h / 20;
+  for (let i = 0; i <= 20; i++) {
+    const ly = y + i * boardH;
+    c.beginPath();
+    c.moveTo(x, ly);
+    c.lineTo(x + w, ly);
+    c.stroke();
+  }
+  c.restore();
+
+  // Court lines style
+  c.strokeStyle = '#888';
+  c.lineWidth = 2;
+
+  // Outer boundary
+  c.beginPath();
+  c.roundRect(x, y, w, h, 4);
+  c.stroke();
+
+  // Half court line
+  c.beginPath();
+  c.moveTo(x + w / 2, y);
+  c.lineTo(x + w / 2, y + h);
+  c.stroke();
+
+  // Half court circle (6ft radius NCAA / 8ft NBA â€” use 8ft)
+  const hcR = (8 / 50) * h;
+  c.beginPath();
+  c.arc(x + w / 2, y + h / 2, hcR, 0, Math.PI * 2);
+  c.stroke();
+
+  // Draw two half-courts
+  drawHalf(true);   // left = away attacks
+  drawHalf(false);  // right = home attacks
+}
+
+function drawHalf(isLeft) {
+  const c = ctx;
+  const { x, y, w, h } = COURT;
+  c.strokeStyle = '#888';
+  c.lineWidth = 2;
+
+  // Basket position (5.25ft from baseline â€” center of rim)
+  const bx = isLeft ? x + (5.25 / 100) * w : x + w - (5.25 / 100) * w;
+  const by = y + h / 2;
+
+  // Paint (NCAA: 12ft wide, 19ft long / NBA: 16ft wide, 19ft long â€” use 16x19)
+  const paintW = (19 / 100) * w;
+  const paintH = (16 / 50) * h;
+  const paintX = isLeft ? x : x + w - paintW;
+  const paintY = by - paintH / 2;
+
+  // Paint fill (slightly lighter than floor)
+  c.fillStyle = 'rgba(140,100,40,0.35)';
+  c.fillRect(paintX, paintY, paintW, paintH);
+
+  // Paint border
+  c.beginPath();
+  c.rect(paintX, paintY, paintW, paintH);
+  c.stroke();
+
+  // Free throw circle (6ft radius)
+  const ftx = isLeft ? x + (19 / 100) * w : x + w - (19 / 100) * w;
+  const ftR = (6 / 50) * h;
+  // Solid half facing court
+  c.beginPath();
+  if (isLeft) {
+    c.arc(ftx, by, ftR, -Math.PI / 2, Math.PI / 2, false);
+  } else {
+    c.arc(ftx, by, ftR, Math.PI / 2, -Math.PI / 2, false);
+  }
+  c.stroke();
+  // Dashed half facing baseline
+  c.setLineDash([6, 6]);
+  c.beginPath();
+  if (isLeft) {
+    c.arc(ftx, by, ftR, Math.PI / 2, -Math.PI / 2, false);
+  } else {
+    c.arc(ftx, by, ftR, -Math.PI / 2, Math.PI / 2, false);
+  }
+  c.stroke();
+  c.setLineDash([]);
+
+  // Backboard (3ft wide, ~3ft from baseline)
+  const bbx = isLeft ? x + (3 / 100) * w : x + w - (3 / 100) * w;
+  const bbHalf = (3 / 50) * h;
+  c.lineWidth = 4;
+  c.strokeStyle = '#555';
+  c.beginPath();
+  c.moveTo(bbx, by - bbHalf);
+  c.lineTo(bbx, by + bbHalf);
+  c.stroke();
+  c.lineWidth = 2;
+  c.strokeStyle = '#888';
+
+  // Rim (9 inches radius â‰ˆ 0.75ft)
+  const rimR = Math.max(6, (1.5 / 50) * h);
+  c.beginPath();
+  c.arc(bx, by, rimR, 0, Math.PI * 2);
+  c.strokeStyle = '#c44';
+  c.lineWidth = 3;
+  c.stroke();
+  c.strokeStyle = '#888';
+  c.lineWidth = 2;
+
+  // 3-point arc (NCAA 20.75ft / NBA 23.75ft from basket â€” use 22ft avg)
+  // Corner 3: 22ft from basket at baseline
+  // Arc radius from basket: 22ft 
+  const arc3Rx = (22 / 100) * w;
+  const arc3Ry = (22 / 50) * h;
+  // Corner cut-in lines at y = Â±(3ft from sideline) = 22ft from basket center
+  const corner3Y = (22 / 50) * h;
+  const corner3Len = (14 / 100) * w; // line extends 14ft from baseline
+  const corner3X = isLeft ? x + corner3Len : x + w - corner3Len;
+
+  // Corner lines
+  c.beginPath();
+  c.moveTo(isLeft ? x : x + w, by - corner3Y);
+  c.lineTo(corner3X, by - corner3Y);
+  c.stroke();
+  c.beginPath();
+  c.moveTo(isLeft ? x : x + w, by + corner3Y);
+  c.lineTo(corner3X, by + corner3Y);
+  c.stroke();
+
+  // Arc between corner lines (using ellipse)
+  const aStartAngle = Math.atan2(-corner3Y, corner3X - bx);
+  const aEndAngle   = Math.atan2( corner3Y, corner3X - bx);
+  c.beginPath();
+  if (isLeft) {
+    c.ellipse(bx, by, arc3Rx, arc3Ry, 0,
+      Math.atan2(-corner3Y, corner3Len - (5.25 / 100) * w),
+      Math.atan2( corner3Y, corner3Len - (5.25 / 100) * w),
+      false);
+  } else {
+    c.ellipse(bx, by, arc3Rx, arc3Ry, 0,
+      Math.PI - Math.atan2(-corner3Y, corner3Len - (5.25 / 100) * w),
+      Math.PI - Math.atan2( corner3Y, corner3Len - (5.25 / 100) * w),
+      true);
+  }
+  c.stroke();
+
+  // Restricted area arc (4ft radius)
+  const raR = (4 / 50) * h;
+  c.beginPath();
+  if (isLeft) {
+    c.arc(bx, by, raR, -Math.PI / 2, Math.PI / 2, false);
+  } else {
+    c.arc(bx, by, raR, Math.PI / 2, -Math.PI / 2, false);
+  }
+  c.stroke();
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Shot Dot Rendering
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+const DOT_R = 7;
+
+function drawShots(now) {
+  for (const shot of shots) {
+    // Pop-in animation
+    const elapsed = now - shot.animStart;
+    const rawT = Math.min(elapsed / 350, 1);
+    // spring-ish: overshoot then settle
+    const t = rawT < 0.6
+      ? (rawT / 0.6) * 1.15
+      : 1.15 - (rawT - 0.6) / 0.4 * 0.15;
+    const scale = Math.max(0, t);
+
+    const teamColor = shot.teamId === homeTeam.id ? homeTeam.color : awayTeam.color;
+
+    ctx.save();
+    ctx.translate(shot.cx, shot.cy);
+    ctx.scale(scale, scale);
+
+    if (shot.made) {
+      // Filled dot
+      ctx.beginPath();
+      ctx.arc(0, 0, DOT_R, 0, Math.PI * 2);
+      ctx.fillStyle = teamColor;
+      ctx.fill();
+      // Thin white border for contrast
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      // Hollow dot
+      ctx.beginPath();
+      ctx.arc(0, 0, DOT_R, 0, Math.PI * 2);
+      ctx.strokeStyle = teamColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Slight fill for visibility
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Score popups
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function addPopup(cx, cy, text, color) {
+  popups.push({ cx, cy, text, color, startTime: performance.now() });
+}
+
+function drawPopups(now) {
+  for (let i = popups.length - 1; i >= 0; i--) {
+    const p = popups[i];
+    const t = (now - p.startTime) / 2000;
+    if (t >= 1) { popups.splice(i, 1); continue; }
+    const alpha = 1 - t;
+    const yOff = -t * 55;
+    const scale = 1 + t * 0.3;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(p.cx, p.cy + yOff);
+    ctx.scale(scale, scale);
+    ctx.font = 'bold 52px "Arial Black", Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.lineWidth = 7;
+    ctx.strokeText(p.text, 0, 0);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(p.text, 0, 0);
+    // Color shadow
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 18;
+    ctx.fillText(p.text, 0, 0);
+    ctx.restore();
+  }
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Team label overlays on court halves
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function drawTeamLabels() {
+  const c = ctx;
+  const { x, y, w, h } = COURT;
+
+  // Away â€” left half, top corner
+  c.save();
+  c.globalAlpha = 0.22;
+  c.font = 'bold 72px "Arial Black", Arial';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillStyle = awayTeam.color;
+  c.fillText(awayTeam.abbr, x + w * 0.25, y + h / 2);
+  c.restore();
+
+  // Home â€” right half
+  c.save();
+  c.globalAlpha = 0.22;
+  c.font = 'bold 72px "Arial Black", Arial';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillStyle = homeTeam.color;
+  c.fillText(homeTeam.abbr, x + w * 0.75, y + h / 2);
+  c.restore();
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Render Loop
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function render(now) {
+  ctx.clearRect(0, 0, W, H);
+
+  // BG
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  drawCourt();
+  drawTeamLabels();
+  drawShots(now);
+  drawPopups(now);
+
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  ESPN Data + Polling
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+async function fetchGames() {
+  const r = await fetch(ESPN[sport].scoreboard);
+  const d = await r.json();
+  return d.events || [];
+}
+
+async function fetchSummary(id) {
+  const r = await fetch(ESPN[sport].summary(id));
+  return r.json();
+}
+
+function setStatus(cls, text) {
+  document.getElementById('status-dot').className = cls;
+  document.getElementById('status-text').textContent = text;
+}
+
+async function loadGames() {
+  const sel = document.getElementById('game-select');
+  sel.innerHTML = '<option value="">Loadingâ€¦</option>';
+  try {
+    const games = await fetchGames();
+    sel.innerHTML = '<option value="">â€” select game â€”</option>';
+    if (!games.length) {
+      sel.innerHTML = '<option value="">No live games right now</option>';
+      return;
+    }
+    for (const g of games) {
+      const comp = g.competitions?.[0];
+      if (!comp) continue;
+      const teams = comp.competitors || [];
+      const abrv = teams.map(t => t.team?.abbreviation || '???');
+      const status = g.status?.type?.shortDetail || '';
+      const opt = document.createElement('option');
+      opt.value = g.id;
+      opt.textContent = `${abrv[0]} vs ${abrv[1]}  â€”  ${status}`;
+      sel.appendChild(opt);
+    }
+  } catch(e) {
+    sel.innerHTML = '<option value="">Error loading games</option>';
+  }
+}
+
+async function poll() {
+  if (!running || !selectedGameId) return;
+  try {
+    const data = await fetchSummary(selectedGameId);
+    ingestData(data);
+  } catch(e) {
+    console.error('Poll error', e);
+    setStatus('waiting', 'Error â€” retrying');
+  }
+  if (running) pollTimer = setTimeout(poll, 8000);
+}
+
+function ingestData(data) {
+  // â”€â”€ Teams from boxscore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const bsTeams = data.boxscore?.teams || [];
+  for (const bt of bsTeams) {
+    const t = bt.team;
+    const color = '#' + (t.color || 'aaaaaa');
+    if (bt.homeAway === 'home') {
+      homeTeam.id    = t.id;
+      homeTeam.abbr  = t.abbreviation || t.shortDisplayName || 'HOME';
+      homeTeam.color = color;
+    } else {
+      awayTeam.id    = t.id;
+      awayTeam.abbr  = t.abbreviation || t.shortDisplayName || 'AWAY';
+      awayTeam.color = color;
+    }
+  }
+
+  // Update header team labels
+  document.getElementById('team-away-abbr').textContent = awayTeam.abbr;
+  document.getElementById('team-away-abbr').style.color = awayTeam.color;
+  document.getElementById('team-home-abbr').textContent = homeTeam.abbr;
+  document.getElementById('team-home-abbr').style.color = homeTeam.color;
+
+  // â”€â”€ Scores + clock from header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const comp = data.header?.competitions?.[0];
+  if (comp) {
+    for (const c of (comp.competitors || [])) {
+      const score = c.score || '0';
+      if (c.homeAway === 'home') {
+        homeTeam.score = score;
+        document.getElementById('team-home-score').textContent = score;
+      } else {
+        awayTeam.score = score;
+        document.getElementById('team-away-score').textContent = score;
+      }
+    }
+    const st = comp.status;
+    if (st) {
+      const p = st.period || 1;
+      const pLabel = p <= 2 ? `${p === 1 ? '1st' : '2nd'} Half` : (p <= 4 ? `Q${p}` : `OT${p-4}`);
+      document.getElementById('period-label').textContent = pLabel;
+      document.getElementById('clock-label').textContent = st.displayClock || 'â€”';
+    }
+  }
+
+  // â”€â”€ Plays â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const plays = data.plays || [];
+  if (!plays.length) {
+    setStatus('waiting', 'No plays yet');
+    return;
+  }
+
+  let newCount = 0;
+  for (const play of plays) {
+    const pid = play.id || play.sequenceNumber;
+    if (!pid || processedPlayIds.has(pid)) continue;
+    processedPlayIds.add(pid);
+
+    // Only plot shot attempts
+    const isShotAttempt = play.shotAttempt === true
+      || play.type?.text?.toLowerCase().includes('shot')
+      || play.type?.text?.toLowerCase().includes('jumper')
+      || play.type?.text?.toLowerCase().includes('layup')
+      || play.type?.text?.toLowerCase().includes('dunk')
+      || play.type?.text?.toLowerCase().includes('three')
+      || play.type?.text?.toLowerCase().includes('hook');
+
+    if (!isShotAttempt && !play.scoringPlay) {
+      // Still update ticker for non-shot plays
+      if (play.text) updateTicker(play);
+      continue;
+    }
+
+    const coord = play.coordinate;
+    let cx, cy;
+
+    if (coord && coord.x != null && coord.y != null) {
+      const pt = COURT.espnToCanvas(coord.x, coord.y);
+      cx = pt.x;
+      cy = pt.y;
+    } else {
+      // Fallback: random near appropriate basket
+      const isHome = play.team?.id === homeTeam.id;
+      const bx = isHome ? COURT.x + COURT.w * 0.88 : COURT.x + COURT.w * 0.12;
+      cx = bx + (Math.random() - 0.5) * 100;
+      cy = COURT.cy + (Math.random() - 0.5) * 160;
+    }
+
+    // Clamp inside court
+    cx = Math.max(COURT.x + DOT_R + 2, Math.min(COURT.x + COURT.w - DOT_R - 2, cx));
+    cy = Math.max(COURT.y + DOT_R + 2, Math.min(COURT.y + COURT.h - DOT_R - 2, cy));
+
+    const made = play.scoringPlay === true;
+    const scoreValue = play.scoreValue || (play.type?.text?.toLowerCase().includes('three') ? 3 : 2);
+
+    shots.push({
+      cx, cy,
+      made,
+      teamId: play.team?.id,
+      scoreValue,
+      animStart: performance.now() + newCount * 120 // stagger if multiple new shots
+    });
+
+    // Popup for made shots
+    if (made) {
+      const delay = newCount * 120 + 300;
+      const teamColor = play.team?.id === homeTeam.id ? homeTeam.color : awayTeam.color;
+      setTimeout(() => addPopup(cx, cy - 20, `+${scoreValue}`, teamColor), delay);
+    }
+
+    updateTicker(play);
+    newCount++;
+  }
+
+  setStatus('live', newCount > 0 ? `LIVE â€” +${newCount} new` : 'LIVE');
+}
+
+function updateTicker(play) {
+  if (play.text) {
+    document.getElementById('ticker').textContent = 'ðŸ€  ' + play.text;
+  }
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Controls
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+document.querySelectorAll('.sport-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sport-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sport = btn.dataset.sport;
+    selectedGameId = null;
+    loadGames();
+  });
+});
+
+document.getElementById('game-select').addEventListener('change', e => {
+  selectedGameId = e.target.value || null;
+  // Reset when switching games
+  shots = [];
+  popups = [];
+  processedPlayIds.clear();
+});
+
+document.getElementById('start-stop').addEventListener('click', () => {
+  if (!running) {
+    if (!selectedGameId) { alert('Pick a game first!'); return; }
+    running = true;
+    document.getElementById('start-stop').textContent = 'â¹ Stop';
+    document.getElementById('start-stop').classList.remove('stopped');
+    setStatus('waiting', 'Loadingâ€¦');
+    poll();
+  } else {
+    running = false;
+    clearTimeout(pollTimer);
+    document.getElementById('start-stop').textContent = 'â–¶ Start';
+    document.getElementById('start-stop').classList.add('stopped');
+    setStatus('', 'Stopped');
+  }
+});
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  shots = [];
+  popups = [];
+  processedPlayIds.clear();
+});
+
+// Initial load
+loadGames();
+setInterval(() => { if (!running) loadGames(); }, 60000);
+</script>
+</body>
+</html>
