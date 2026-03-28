@@ -722,7 +722,7 @@ function buildPlayEntry(play, animate, isLatest) {
   if (hasCoord && isShot(play)) {
     requestAnimationFrame(() => {
       const mc = li.querySelector('.mini-court');
-      if (mc) drawMiniCourt(mc, play.coordinate.x, play.coordinate.y, play.scoringPlay, color);
+      if (mc) drawMiniCourt(mc, play.coordinate.x, play.coordinate.y, play.scoringPlay, color, play.team?.id);
     });
   }
 
@@ -746,7 +746,7 @@ function escapeHtml(s) {
 // ============================================================
 // MINI COURT
 // ============================================================
-function drawMiniCourt(canvas, espnX, espnY, made, teamColor) {
+function drawMiniCourt(canvas, espnX, espnY, made, teamColor, teamId) {
   const W = 100, H = 55;
   canvas.width = W;
   canvas.height = H;
@@ -780,9 +780,19 @@ function drawMiniCourt(canvas, espnX, espnY, made, teamColor) {
   ctx.arc(W - 1 - paintW, H / 2, H * 0.06, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Convert ESPN coords: x 0-100 (away baseline -> home baseline), y 0-50 (sideline to sideline)
-  const px = (espnX / 100) * W;
-  const py = (espnY / 50) * H;
+  // Same coordinate logic as main chart
+  const COURT_HALF = 47;
+  const COURT_WIDTH = 50;
+  const xFrac = Math.min(espnX / COURT_HALF, 1);
+  const yFrac = Math.max(0, Math.min(espnY / COURT_WIDTH, 1));
+  const side = getTeamSide(teamId);
+  let px, py;
+  if (side === 'away') {
+    px = xFrac * (W / 2);
+  } else {
+    px = W - xFrac * (W / 2);
+  }
+  py = yFrac * H;
 
   // Draw dot
   const r = 4;
