@@ -3,1153 +3,960 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Court Tracker</title>
+<title>Court Tracker - Live Play-by-Play</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; color: #1a1a1a; }
 
-  body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    background: #f5f5f5;
-    color: #1a1a1a;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ── Header ── */
-  #header {
+  /* SCORE HEADER */
+  #score-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
     background: #fff;
-    border-bottom: 2px solid #cc0000;
-    padding: 10px 20px;
+    border-bottom: 2px solid #e0e0e0;
+    padding: 12px 16px 8px;
+  }
+  .header-inner {
+    max-width: 800px;
+    margin: 0 auto;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-
-  #score-display {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 22px;
-    font-weight: 700;
-  }
-
-  #away-abbr { color: #333; }
-  #home-abbr { color: #333; }
-  .score-sep { color: #999; font-weight: 300; }
-  #game-clock {
-    font-size: 12px;
-    color: #666;
-    font-weight: 400;
-    text-align: center;
-    line-height: 1.4;
-  }
-  #away-score, #home-score { font-size: 26px; }
-
-  /* ── Tabs ── */
-  #tabs {
-    display: flex;
-    background: #fff;
-    border-bottom: 1px solid #ddd;
-    flex-shrink: 0;
-  }
-
-  .tab-btn {
-    padding: 10px 24px;
-    border: none;
-    background: none;
-    font-size: 14px;
-    font-weight: 600;
-    color: #666;
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    transition: all 0.15s;
-  }
-
-  .tab-btn.active {
-    color: #cc0000;
-    border-bottom-color: #cc0000;
-  }
-
-  .tab-btn:hover:not(.active) {
-    color: #333;
-    background: #f9f9f9;
-  }
-
-  /* ── Main area ── */
-  #main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: visible;
-  }
-
-  .view { display: none; flex: 1; flex-direction: column; overflow: visible; }
-  .view.active { display: flex; overflow: visible; }
-
-  /* ── Shot Chart View ── */
-  #shot-chart-view {
-    align-items: center;
-    justify-content: flex-start;
-    padding: 16px;
-    gap: 12px;
-  }
-
-  #shot-canvas {
-    border: 1px solid #ccc;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    display: block;
-    max-width: 100%;
-  }
-
-  #shot-legend {
-    display: flex;
-    gap: 20px;
-    font-size: 13px;
-    color: #444;
-    align-items: center;
-  }
-
-  .legend-item { display: flex; align-items: center; gap: 6px; }
-  .legend-dot-made {
-    width: 12px; height: 12px; border-radius: 50%;
-    background: #cc0000;
-    display: inline-block;
-  }
-  .legend-dot-miss {
-    width: 12px; height: 12px; border-radius: 50%;
-    border: 2px solid #cc0000;
-    background: transparent;
-    display: inline-block;
-  }
-
-  /* ── Play Tracker View ── */
-  #play-tracker-view {
-    flex-direction: row;
-    gap: 0;
-    overflow: visible;
-  }
-
-  #tracker-left {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    background: #f5f5f5;
+    gap: 0;
   }
-
-  #court-3d-wrapper {
-    perspective: 1200px;
-    width: 100%;
-    max-width: 760px;
-    overflow: visible;
-  }
-
-  #court-3d-inner {
-    transform: rotateX(38deg) scale(0.95);
-    transform-origin: center center;
-    transform-style: preserve-3d;
-    width: 100%;
-    position: relative;
-    overflow: visible;
-  }
-
-  #tracker-canvas {
-    display: block;
-    width: 100%;
-    height: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
-  }
-
-  #tracker-right {
-    width: 320px;
+  .team-block {
     display: flex;
     flex-direction: column;
-    background: #fff;
-    border-left: 1px solid #e0e0e0;
-    flex-shrink: 0;
+    align-items: center;
+    min-width: 80px;
   }
-
-  #pbp-header {
-    padding: 12px 16px;
-    font-size: 12px;
+  .team-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+  .team-abbr {
+    font-size: 13px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #666;
-    border-bottom: 1px solid #eee;
-    background: #fafafa;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
   }
-
-  #pbp-list {
+  .score-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     flex: 1;
-    overflow-y: auto;
-    padding: 0;
+    padding: 0 8px;
   }
-
-  .pbp-item {
-    padding: 10px 14px;
-    border-bottom: 1px solid #f0f0f0;
-    transition: background 0.2s;
-  }
-
-  .pbp-item.latest {
-    background: #fff8f0;
-    border-left: 3px solid #cc0000;
-  }
-
-  .pbp-row1 {
+  .scores-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 3px;
+    gap: 12px;
+  }
+  .score-num {
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1;
+    color: #1a1a1a;
+  }
+  .score-sep {
+    font-size: 28px;
+    font-weight: 300;
+    color: #999;
+  }
+  .game-status {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    font-weight: 500;
   }
 
-  .pbp-team-dot {
-    width: 10px; height: 10px; border-radius: 50%;
+  /* SHOT CHART */
+  #shot-chart-section {
+    max-width: 800px;
+    margin: 12px auto;
+    background: #fff;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  #shot-chart-section h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  #court-canvas {
+    width: 100%;
+    height: 260px;
+    display: block;
+    border-radius: 4px;
+  }
+  #chart-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: #555;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
     flex-shrink: 0;
   }
+  .legend-dot.hollow {
+    border: 2px solid;
+    background: transparent;
+  }
 
-  .pbp-type {
+  /* PLAY BY PLAY */
+  #pbp-section {
+    max-width: 800px;
+    margin: 12px auto;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  #pbp-section h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  #pbp-list { list-style: none; }
+  .play-entry {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f5f5f5;
+    border-left: 4px solid #ccc;
+    gap: 10px;
+    transition: background 0.3s;
+    position: relative;
+  }
+  .play-entry.latest { background: #f0f7ff; }
+  .play-entry.new-play-anim { animation: fadeInDown 0.4s ease; }
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .play-team-logo {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .play-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .play-top-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .play-type {
     font-size: 13px;
     font-weight: 700;
     color: #1a1a1a;
-    flex: 1;
   }
-
-  .pbp-score {
+  .play-score-badge {
     font-size: 12px;
-    font-weight: 600;
-    color: #333;
-    white-space: nowrap;
+    font-weight: 700;
   }
-
-  .pbp-time {
+  .play-clock {
     font-size: 11px;
-    color: #999;
-    margin-bottom: 2px;
-    padding-left: 18px;
+    color: #888;
+    white-space: nowrap;
+    font-weight: 500;
   }
-
-  .pbp-desc {
+  .play-desc {
     font-size: 12px;
     color: #666;
-    padding-left: 18px;
+    margin-top: 2px;
     line-height: 1.4;
   }
+  .play-score-display {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+    font-weight: 600;
+  }
+  .mini-court-wrap {
+    flex-shrink: 0;
+    margin-left: 4px;
+  }
+  .mini-court {
+    width: 100px;
+    height: 55px;
+    display: block;
+    border-radius: 3px;
+    border: 1px solid #e0e0e0;
+  }
+  .score-popup {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 16px;
+    font-weight: 900;
+    pointer-events: none;
+    animation: popupAnim 1.5s ease forwards;
+    z-index: 10;
+  }
+  @keyframes popupAnim {
+    0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-30px); }
+  }
 
-  /* ── Controls ── */
+  /* CONTROLS */
   #controls {
+    max-width: 800px;
+    margin: 12px auto 24px;
     background: #fff;
-    border-top: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     padding: 10px 16px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
-    flex-shrink: 0;
   }
-
-  .ctrl-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .sport-toggle { display: flex; border: 1px solid #ccc; border-radius: 4px; overflow: hidden; }
-  .sport-btn {
+  .ctrl-label { font-size: 12px; color: #666; font-weight: 600; }
+  .toggle-group { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+  .toggle-btn {
     padding: 5px 12px;
     font-size: 12px;
     font-weight: 600;
     border: none;
-    background: #fff;
-    color: #666;
+    background: #f5f5f5;
     cursor: pointer;
-    transition: all 0.15s;
+    color: #555;
   }
-  .sport-btn.active { background: #cc0000; color: #fff; }
-
-  #game-select {
+  .toggle-btn.active { background: #cc0000; color: #fff; }
+  select#game-select {
     padding: 5px 8px;
-    font-size: 13px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #fff;
-    min-width: 220px;
-    max-width: 340px;
-  }
-
-  .ctrl-btn {
-    padding: 5px 14px;
     font-size: 12px;
-    font-weight: 600;
-    border: 1px solid #ccc;
+    border: 1px solid #ddd;
     border-radius: 4px;
     background: #fff;
     color: #333;
-    cursor: pointer;
-    transition: all 0.15s;
+    max-width: 220px;
   }
-  .ctrl-btn:hover { background: #f0f0f0; }
-  .ctrl-btn.running { background: #cc0000; color: #fff; border-color: #cc0000; }
-
-  #status-msg {
+  #start-stop-btn {
+    padding: 5px 14px;
     font-size: 12px;
-    color: #999;
-    margin-left: auto;
+    font-weight: 700;
+    border: none;
+    border-radius: 4px;
+    background: #cc0000;
+    color: #fff;
+    cursor: pointer;
   }
-
-  /* ── Score popup ── */
-  .score-popup {
-    position: fixed;
-    font-size: 18px;
-    font-weight: 800;
-    pointer-events: none;
-    z-index: 9999;
-    animation: popupFade 1.5s ease-out forwards;
-  }
-  @keyframes popupFade {
-    0%   { opacity: 1; transform: translateY(0) scale(1.2); }
-    100% { opacity: 0; transform: translateY(-50px) scale(1); }
-  }
+  #start-stop-btn.running { background: #666; }
+  #status-text { font-size: 11px; color: #888; flex: 1; }
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div id="header">
-  <div id="score-display">
-    <span id="away-abbr" style="color:#333">AWAY</span>
-    <span id="away-score">0</span>
-    <span class="score-sep">-</span>
-    <span id="home-score">0</span>
-    <span id="home-abbr" style="color:#333">HOME</span>
-  </div>
-  <div id="game-clock">
-    <div id="period-display">--</div>
-    <div id="clock-display">--:--</div>
-  </div>
-  <div style="font-size:12px;color:#999;font-weight:600;letter-spacing:0.05em;">COURT TRACKER</div>
-</div>
-
-<!-- Tabs -->
-<div id="tabs">
-  <button class="tab-btn active" data-tab="shot-chart-view">Shot Chart</button>
-  <button class="tab-btn" data-tab="play-tracker-view">Play Tracker</button>
-</div>
-
-<!-- Main -->
-<div id="main">
-
-  <!-- Shot Chart View -->
-  <div id="shot-chart-view" class="view active">
-    <div id="shot-legend">
-      <div class="legend-item">
-        <span class="legend-dot-made" id="legend-away-made"></span>
-        <span id="legend-away-label">Away Made</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-dot-miss" id="legend-away-miss"></span>
-        <span>Away Missed</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-dot-made" id="legend-home-made"></span>
-        <span id="legend-home-label">Home Made</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-dot-miss" id="legend-home-miss"></span>
-        <span>Home Missed</span>
-      </div>
+<!-- SCORE HEADER -->
+<div id="score-header">
+  <div class="header-inner">
+    <div class="team-block" id="away-block">
+      <img class="team-logo" id="away-logo" src="" alt="" onerror="this.style.display='none'">
+      <span class="team-abbr" id="away-abbr">AWAY</span>
     </div>
-    <canvas id="shot-canvas" width="940" height="500"></canvas>
-  </div>
-
-  <!-- Play Tracker View -->
-  <div id="play-tracker-view" class="view">
-    <div id="tracker-left">
-      <div id="court-3d-wrapper">
-        <div id="court-3d-inner">
-          <canvas id="tracker-canvas" width="940" height="500"></canvas>
-        </div>
+    <div class="score-block">
+      <div class="scores-row">
+        <span class="score-num" id="away-score">0</span>
+        <span class="score-sep">-</span>
+        <span class="score-num" id="home-score">0</span>
       </div>
+      <div class="game-status" id="game-status">Loading...</div>
     </div>
-    <div id="tracker-right">
-      <div id="pbp-header">Play-by-Play</div>
-      <div id="pbp-list"></div>
+    <div class="team-block" id="home-block">
+      <img class="team-logo" id="home-logo" src="" alt="" onerror="this.style.display='none'">
+      <span class="team-abbr" id="home-abbr">HOME</span>
     </div>
   </div>
-
 </div>
 
-<!-- Controls -->
+<!-- SHOT CHART -->
+<div id="shot-chart-section">
+  <h2>Shot Chart</h2>
+  <canvas id="court-canvas"></canvas>
+  <div id="chart-legend"></div>
+</div>
+
+<!-- PLAY BY PLAY -->
+<div id="pbp-section">
+  <h2>Play-by-Play</h2>
+  <ul id="pbp-list"></ul>
+</div>
+
+<!-- CONTROLS -->
 <div id="controls">
   <span class="ctrl-label">Sport:</span>
-  <div class="sport-toggle">
-    <button class="sport-btn active" data-sport="mens-college-basketball">NCAA</button>
-    <button class="sport-btn" data-sport="nba">NBA</button>
+  <div class="toggle-group">
+    <button class="toggle-btn active" id="btn-ncaa" onclick="setSport('ncaa')">NCAA</button>
+    <button class="toggle-btn" id="btn-nba" onclick="setSport('nba')">NBA</button>
   </div>
-  <span class="ctrl-label">Game:</span>
-  <select id="game-select"><option>-- Loading games --</option></select>
-  <button class="ctrl-btn" id="start-btn">Start</button>
-  <button class="ctrl-btn" id="clear-btn">Clear Shots</button>
-  <span id="status-msg">Not running</span>
+  <select id="game-select" onchange="selectGame(this.value)"></select>
+  <button id="start-stop-btn" onclick="togglePolling()">Start</button>
+  <span id="status-text">Select a game to begin</span>
 </div>
 
 <script>
-// ─────────────────────────────────────────────
-//  STATE
-// ─────────────────────────────────────────────
-const state = {
-  sport: 'mens-college-basketball',
-  gameId: null,
-  running: false,
-  intervalId: null,
-  initialLoadDone: false,
-  lastSeenPlayId: null,
-  shots: [],          // { x, y, made, teamId, value }
-  plays: [],          // all plays for PBP
-  teams: {},          // teamId -> { abbr, color, homeAway }
-  ballPos: null,      // { x, y } current ball position (tracker canvas coords)
-  ballTarget: null,
-  currentView: 'shot-chart-view',
+// ============================================================
+// STATE
+// ============================================================
+let currentSport = 'ncaa';
+let currentGameId = null;
+let polling = false;
+let pollTimer = null;
+let lastSeenPlayId = null;
+let initialLoadDone = false;
+let teamData = {}; // { home: {abbr, color, logo, id}, away: {abbr, color, logo, id} }
+let shots = []; // all shots rendered on chart
+let allPlays = []; // all plays for PBP
+
+const SPORT_PATHS = {
+  ncaa: 'basketball/mens-college-basketball',
+  nba: 'basketball/nba'
 };
 
-// ─────────────────────────────────────────────
-//  CANVAS SETUP
-// ─────────────────────────────────────────────
-const shotCanvas   = document.getElementById('shot-canvas');
-const shotCtx      = shotCanvas.getContext('2d');
-const trackerCanvas = document.getElementById('tracker-canvas');
-const trackerCtx   = trackerCanvas.getContext('2d');
+function apiBase() {
+  return `https://site.api.espn.com/apis/site/v2/sports/${SPORT_PATHS[currentSport]}`;
+}
 
-const CW = 940, CH = 500;  // court canvas dimensions
+// ============================================================
+// SPORT TOGGLE
+// ============================================================
+function setSport(s) {
+  currentSport = s;
+  document.getElementById('btn-ncaa').className = 'toggle-btn' + (s === 'ncaa' ? ' active' : '');
+  document.getElementById('btn-nba').className = 'toggle-btn' + (s === 'nba' ? ' active' : '');
+  stopPolling();
+  currentGameId = null;
+  lastSeenPlayId = null;
+  initialLoadDone = false;
+  shots = [];
+  allPlays = [];
+  document.getElementById('pbp-list').innerHTML = '';
+  document.getElementById('chart-legend').innerHTML = '';
+  drawCourtOnly();
+  loadGameList();
+}
 
-// ─────────────────────────────────────────────
-//  COURT DRAWING — FLAT SHOT CHART
-// ─────────────────────────────────────────────
-function drawFlatCourt(ctx, w, h) {
-  const m = 30; // margin
-  const cw = w - m * 2;
-  const ch = h - m * 2;
+// ============================================================
+// GAME LIST
+// ============================================================
+async function loadGameList() {
+  setStatus('Loading games...');
+  try {
+    const r = await fetch(`${apiBase()}/scoreboard`);
+    const d = await r.json();
+    const events = d.events || [];
+    const sel = document.getElementById('game-select');
+    sel.innerHTML = '<option value="">-- Select Game --</option>';
+    events.forEach(ev => {
+      const comps = ev.competitions[0];
+      const teams = comps.competitors;
+      const away = teams.find(t => t.homeAway === 'away');
+      const home = teams.find(t => t.homeAway === 'home');
+      const label = `${away.team.abbreviation} @ ${home.team.abbreviation} - ${comps.status.type.shortDetail}`;
+      const opt = document.createElement('option');
+      opt.value = ev.id;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+    setStatus(events.length ? `${events.length} games available` : 'No live games');
+  } catch(e) {
+    setStatus('Failed to load games');
+  }
+}
+
+function selectGame(id) {
+  if (!id) return;
+  stopPolling();
+  currentGameId = id;
+  lastSeenPlayId = null;
+  initialLoadDone = false;
+  shots = [];
+  allPlays = [];
+  document.getElementById('pbp-list').innerHTML = '';
+  document.getElementById('chart-legend').innerHTML = '';
+  drawCourtOnly();
+  fetchAndRender(true);
+}
+
+// ============================================================
+// POLLING
+// ============================================================
+function togglePolling() {
+  if (polling) {
+    stopPolling();
+  } else {
+    if (!currentGameId) { setStatus('Select a game first'); return; }
+    startPolling();
+  }
+}
+
+function startPolling() {
+  polling = true;
+  const btn = document.getElementById('start-stop-btn');
+  btn.textContent = 'Stop';
+  btn.className = 'running';
+  setStatus('Live - polling every 8s');
+  schedulePoll();
+}
+
+function stopPolling() {
+  polling = false;
+  clearTimeout(pollTimer);
+  const btn = document.getElementById('start-stop-btn');
+  btn.textContent = 'Start';
+  btn.className = '';
+  if (currentGameId) setStatus('Paused');
+}
+
+function schedulePoll() {
+  if (!polling) return;
+  pollTimer = setTimeout(async () => {
+    await fetchAndRender(false);
+    schedulePoll();
+  }, 8000);
+}
+
+// ============================================================
+// FETCH + RENDER
+// ============================================================
+async function fetchAndRender(isFirst) {
+  if (!currentGameId) return;
+  try {
+    const r = await fetch(`${apiBase()}/summary?event=${currentGameId}`);
+    const d = await r.json();
+
+    // Parse teams
+    parseTeams(d);
+
+    // Update header
+    updateHeader(d);
+
+    // Process plays
+    const plays = (d.plays || []);
+    if (isFirst && !initialLoadDone) {
+      // Silent first load
+      initialLoadDone = true;
+      allPlays = plays.slice();
+      renderAllPlays(plays, false);
+      if (plays.length > 0) {
+        lastSeenPlayId = plays[plays.length - 1].id;
+      }
+      // Plot all shots silently
+      plays.forEach(p => {
+        if (isShot(p) && p.coordinate) {
+          addShotToChart(p, false);
+        }
+      });
+      redrawChart();
+    } else {
+      // Find new plays since lastSeenPlayId
+      let newPlays = [];
+      if (lastSeenPlayId) {
+        const idx = plays.findIndex(p => p.id == lastSeenPlayId);
+        if (idx >= 0) {
+          newPlays = plays.slice(idx + 1);
+        } else {
+          newPlays = plays;
+        }
+      } else {
+        newPlays = plays;
+      }
+      if (newPlays.length > 0) {
+        newPlays.forEach(p => {
+          allPlays.push(p);
+          prependPlay(p, true);
+          if (isShot(p) && p.coordinate) {
+            addShotToChart(p, true);
+          }
+        });
+        lastSeenPlayId = newPlays[newPlays.length - 1].id;
+        redrawChart();
+        trimPBP();
+      }
+    }
+    updateLegend();
+    setStatus(`Updated ${new Date().toLocaleTimeString()}`);
+  } catch(e) {
+    setStatus(`Error: ${e.message}`);
+  }
+}
+
+// ============================================================
+// TEAM PARSING
+// ============================================================
+function parseTeams(d) {
+  teamData = {};
+  const comps = d.header?.competitions?.[0];
+  if (!comps) return;
+
+  comps.competitors.forEach(c => {
+    const side = c.homeAway; // 'home' or 'away'
+    teamData[side] = {
+      id: c.team.id,
+      abbr: c.team.abbreviation,
+      logo: c.team.logo,
+      color: '#999999'
+    };
+  });
+
+  // Get colors from boxscore
+  (d.boxscore?.teams || []).forEach(bt => {
+    const side = bt.homeAway;
+    if (teamData[side] && bt.team?.color) {
+      teamData[side].color = '#' + bt.team.color;
+    }
+  });
+
+  // Update header team styles
+  const awayAbbr = document.getElementById('away-abbr');
+  const homeAbbr = document.getElementById('home-abbr');
+  const awayLogo = document.getElementById('away-logo');
+  const homeLogo = document.getElementById('home-logo');
+
+  if (teamData.away) {
+    awayAbbr.textContent = teamData.away.abbr;
+    awayAbbr.style.color = teamData.away.color;
+    awayLogo.src = teamData.away.logo || '';
+    awayLogo.alt = teamData.away.abbr;
+  }
+  if (teamData.home) {
+    homeAbbr.textContent = teamData.home.abbr;
+    homeAbbr.style.color = teamData.home.color;
+    homeLogo.src = teamData.home.logo || '';
+    homeLogo.alt = teamData.home.abbr;
+  }
+}
+
+function getTeamSide(teamId) {
+  if (teamData.away && teamData.away.id == teamId) return 'away';
+  if (teamData.home && teamData.home.id == teamId) return 'home';
+  return null;
+}
+
+function getTeamColor(teamId) {
+  const side = getTeamSide(teamId);
+  if (side && teamData[side]) return teamData[side].color;
+  return '#888888';
+}
+
+// ============================================================
+// HEADER UPDATE
+// ============================================================
+function updateHeader(d) {
+  const comps = d.header?.competitions?.[0];
+  if (!comps) return;
+  const status = comps.status;
+  const competitors = comps.competitors || [];
+
+  const away = competitors.find(c => c.homeAway === 'away');
+  const home = competitors.find(c => c.homeAway === 'home');
+
+  if (away) document.getElementById('away-score').textContent = away.score || '0';
+  if (home) document.getElementById('home-score').textContent = home.score || '0';
+
+  const detail = status?.type?.shortDetail || '';
+  document.getElementById('game-status').textContent = detail;
+}
+
+// ============================================================
+// PLAY HELPERS
+// ============================================================
+function isShot(play) {
+  const t = (play.type?.text || '').toLowerCase();
+  return t.includes('shot') || t.includes('jumper') || t.includes('layup') || t.includes('dunk') || t.includes('three') || t.includes('free throw') || play.scoringPlay;
+}
+
+function getPlayLabel(play) {
+  const sv = play.scoreValue;
+  if (play.scoringPlay && sv === 3) return '+3 Points';
+  if (play.scoringPlay && sv === 2) return '+2 Points';
+  if (play.scoringPlay && sv === 1) return '+1 Free Throw';
+  const t = play.type?.text || 'Unknown';
+  const map = {
+    'DefensiveRebound': 'Defensive Rebound',
+    'OffensiveRebound': 'Offensive Rebound',
+    'ShortTimeOut': 'Timeout',
+    'FullTimeOut': 'Timeout',
+    'PersonalFoul': 'Foul',
+    'TechnicalFoul': 'Technical Foul',
+    'Turnover': 'Turnover',
+    'Steal': 'Steal',
+    'BlockedShot': 'Block',
+    'FreeThrow': 'Free Throw',
+    'JumpBall': 'Jump Ball',
+    'Substitution': 'Substitution',
+  };
+  for (const k in map) {
+    if (t.includes(k)) return map[k];
+  }
+  return t;
+}
+
+function getPeriodLabel(n) {
+  if (currentSport === 'nba') {
+    if (n === 1) return '1st Qtr';
+    if (n === 2) return '2nd Qtr';
+    if (n === 3) return '3rd Qtr';
+    if (n === 4) return '4th Qtr';
+    return `OT${n - 4}`;
+  }
+  if (n === 1) return '1st';
+  if (n === 2) return '2nd';
+  return `OT${n - 2}`;
+}
+
+// ============================================================
+// RENDER ALL PLAYS (first load, silent)
+// ============================================================
+function renderAllPlays(plays, animate) {
+  const list = document.getElementById('pbp-list');
+  list.innerHTML = '';
+  // Newest at top = reverse
+  const reversed = plays.slice().reverse().slice(0, 50);
+  reversed.forEach((p, i) => {
+    const li = buildPlayEntry(p, animate, i === 0);
+    list.appendChild(li);
+  });
+}
+
+function prependPlay(play, animate) {
+  const list = document.getElementById('pbp-list');
+  // Remove 'latest' from previous
+  const prev = list.querySelector('.latest');
+  if (prev) prev.classList.remove('latest');
+
+  const li = buildPlayEntry(play, animate, true);
+  list.insertBefore(li, list.firstChild);
+}
+
+function trimPBP() {
+  const list = document.getElementById('pbp-list');
+  while (list.children.length > 50) {
+    list.removeChild(list.lastChild);
+  }
+}
+
+function buildPlayEntry(play, animate, isLatest) {
+  const li = document.createElement('li');
+  li.className = 'play-entry' + (isLatest ? ' latest' : '') + (animate ? ' new-play-anim' : '');
+
+  const color = play.team?.id ? getTeamColor(play.team.id) : '#cccccc';
+  li.style.borderLeftColor = color;
+
+  const clock = play.clock?.displayValue || '';
+  const period = play.period?.number ? getPeriodLabel(play.period.number) : '';
+  const clockStr = clock ? `${clock} - ${period}` : period;
+  const label = getPlayLabel(play);
+  const desc = play.text || '';
+  const awayS = play.awayScore != null ? play.awayScore : '';
+  const homeS = play.homeScore != null ? play.homeScore : '';
+  const scoreStr = (awayS !== '' && homeS !== '') ? `${awayS}-${homeS}` : '';
+
+  // Team logo
+  const side = play.team?.id ? getTeamSide(play.team.id) : null;
+  const logoUrl = side ? (teamData[side]?.logo || '') : '';
+
+  let logoHtml = '';
+  if (logoUrl) {
+    logoHtml = `<img class="play-team-logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">`;
+  } else {
+    logoHtml = `<div style="width:22px;height:22px;border-radius:50%;background:${color};flex-shrink:0;margin-top:2px"></div>`;
+  }
+
+  const scorePrefix = play.scoringPlay && play.scoreValue ? `<span class="play-score-badge" style="color:${color}">+${play.scoreValue} </span>` : '';
+
+  let miniCourtHtml = '';
+  const hasCoord = play.coordinate && play.coordinate.x != null && play.coordinate.y != null;
+  if (isShot(play) && hasCoord) {
+    miniCourtHtml = `<div class="mini-court-wrap"><canvas class="mini-court" data-x="${play.coordinate.x}" data-y="${play.coordinate.y}" data-made="${play.scoringPlay ? '1' : '0'}" data-color="${color}"></canvas></div>`;
+  }
+
+  li.innerHTML = `
+    ${logoHtml}
+    <div class="play-main">
+      <div class="play-top-row">
+        <span class="play-type">${scorePrefix}${escapeHtml(label)}</span>
+        <span class="play-clock">${escapeHtml(clockStr)}</span>
+      </div>
+      <div class="play-desc">${escapeHtml(desc)}</div>
+      ${scoreStr ? `<div class="play-score-display">${scoreStr}</div>` : ''}
+    </div>
+    ${miniCourtHtml}
+  `;
+
+  // Draw mini courts after insertion (deferred)
+  if (hasCoord && isShot(play)) {
+    requestAnimationFrame(() => {
+      const mc = li.querySelector('.mini-court');
+      if (mc) drawMiniCourt(mc, play.coordinate.x, play.coordinate.y, play.scoringPlay, color);
+    });
+  }
+
+  // Score popup for new animated plays
+  if (animate && play.scoringPlay && play.scoreValue) {
+    const popup = document.createElement('div');
+    popup.className = 'score-popup';
+    popup.textContent = `+${play.scoreValue}`;
+    popup.style.color = color;
+    li.appendChild(popup);
+    setTimeout(() => popup.remove(), 1600);
+  }
+
+  return li;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ============================================================
+// MINI COURT
+// ============================================================
+function drawMiniCourt(canvas, espnX, espnY, made, teamColor) {
+  const W = 100, H = 55;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
 
   // Floor
   ctx.fillStyle = '#E8C97A';
-  ctx.fillRect(m, m, cw, ch);
+  ctx.fillRect(0, 0, W, H);
 
-  // Wood grain
-  ctx.save();
-  ctx.strokeStyle = 'rgba(180, 140, 70, 0.22)';
+  // Court outline
+  ctx.strokeStyle = '#5a3e1b';
   ctx.lineWidth = 1;
-  for (let y = m; y < m + ch; y += 8) {
-    ctx.beginPath(); ctx.moveTo(m, y); ctx.lineTo(m + cw, y); ctx.stroke();
-  }
-  ctx.restore();
+  ctx.strokeRect(1, 1, W - 2, H - 2);
 
-  const lc = '#5a3e1b';
-  ctx.strokeStyle = lc;
-  ctx.lineWidth = 2;
-
-  // Outer boundary
-  ctx.strokeRect(m, m, cw, ch);
-
-  // Half court line
+  // Half-court line
   ctx.beginPath();
-  ctx.moveTo(m + cw / 2, m);
-  ctx.lineTo(m + cw / 2, m + ch);
+  ctx.moveTo(W / 2, 1);
+  ctx.lineTo(W / 2, H - 1);
   ctx.stroke();
 
-  // Center circle (radius ~6ft, court = 94ft -> scale)
-  const scaleX = cw / 94;
-  const scaleY = ch / 50;
-  const cx = m + cw / 2;
-  const cy = m + ch / 2;
+  // Paint areas
+  const paintW = W * 0.19, paintH = H * 0.45;
+  ctx.strokeRect(1, (H - paintH) / 2, paintW, paintH);
+  ctx.strokeRect(W - 1 - paintW, (H - paintH) / 2, paintW, paintH);
+
+  // Baskets
   ctx.beginPath();
-  ctx.arc(cx, cy, 6 * scaleX, 0, Math.PI * 2);
+  ctx.arc(1 + paintW, H / 2, H * 0.06, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(W - 1 - paintW, H / 2, H * 0.06, 0, Math.PI * 2);
   ctx.stroke();
 
-  // --- LEFT SIDE (away team, x=0 baseline) ---
-  drawHalfCourtFlat(ctx, m, m, cw, ch, scaleX, scaleY, lc, 'left');
-  // --- RIGHT SIDE (home team, x=100 baseline) ---
-  drawHalfCourtFlat(ctx, m, m, cw, ch, scaleX, scaleY, lc, 'right');
-}
+  // Convert ESPN coords: x 0-100 (away baseline -> home baseline), y 0-50 (sideline to sideline)
+  const px = (espnX / 100) * W;
+  const py = (espnY / 50) * H;
 
-function drawHalfCourtFlat(ctx, mx, my, cw, ch, sx, sy, lc, side) {
-  ctx.strokeStyle = lc;
-  ctx.lineWidth = 2;
-
-  const mid = my + ch / 2;
-  // baseline x
-  const bx = side === 'left' ? mx : mx + cw;
-  const sign = side === 'left' ? 1 : -1;
-
-  // Paint (key): 12ft wide x 19ft deep
-  const keyW = 12 * sy;   // sideline direction
-  const keyD = 19 * sx;   // into court
-  ctx.strokeRect(
-    side === 'left' ? bx : bx - keyD,
-    mid - keyW / 2,
-    keyD,
-    keyW
-  );
-
-  // Free throw circle (radius 6ft)
-  const ftX = side === 'left' ? bx + keyD : bx - keyD;
+  // Draw dot
+  const r = 4;
   ctx.beginPath();
-  ctx.arc(ftX, mid, 6 * sx, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Restricted area arc (radius 4ft from basket)
-  const basketX = side === 'left' ? bx + 5.25 * sx : bx - 5.25 * sx;
-  ctx.beginPath();
-  if (side === 'left') {
-    ctx.arc(basketX, mid, 4 * sx, -Math.PI / 2, Math.PI / 2);
-  } else {
-    ctx.arc(basketX, mid, 4 * sx, Math.PI / 2, -Math.PI / 2);
-  }
-  ctx.stroke();
-
-  // Basket (small circle)
-  ctx.beginPath();
-  ctx.arc(basketX, mid, 0.75 * sx, 0, Math.PI * 2);
-  ctx.fillStyle = lc;
-  ctx.fill();
-
-  // Backboard
-  ctx.strokeStyle = lc;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  const bbX = side === 'left' ? bx + 4 * sx : bx - 4 * sx;
-  ctx.moveTo(bbX, mid - 3 * sy);
-  ctx.lineTo(bbX, mid + 3 * sy);
-  ctx.stroke();
-  ctx.lineWidth = 2;
-
-  // 3-point arc: NCAA = 22ft corners, 22.15ft arc radius from basket center
-  const threeR = 22.15 * sx;
-  const cornerY_top = mid - 22 * sy;
-  const cornerY_bot = mid + 22 * sy;
-  // Calculate where arc meets corner line
-  const dx = Math.sqrt(threeR * threeR - (22 * sy) * (22 * sy));
-
-  // Corner 3s (straight lines from baseline)
-  ctx.beginPath();
-  ctx.moveTo(bx, cornerY_top);
-  if (side === 'left') {
-    ctx.lineTo(bx + dx, cornerY_top);
-  } else {
-    ctx.lineTo(bx - dx, cornerY_top);
-  }
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(bx, cornerY_bot);
-  if (side === 'left') {
-    ctx.lineTo(bx + dx, cornerY_bot);
-  } else {
-    ctx.lineTo(bx - dx, cornerY_bot);
-  }
-  ctx.stroke();
-
-  // Arc
-  const startAngle = side === 'left'
-    ? Math.atan2(-(22 * sy), dx)
-    : Math.PI - Math.atan2(-(22 * sy), dx);
-  const endAngle = side === 'left'
-    ? Math.atan2(22 * sy, dx)
-    : Math.PI - Math.atan2(22 * sy, dx);
-
-  ctx.beginPath();
-  if (side === 'left') {
-    ctx.arc(basketX, mid, threeR, startAngle, endAngle);
-  } else {
-    ctx.arc(basketX, mid, threeR, endAngle, startAngle);
-  }
-  ctx.stroke();
-}
-
-// ─────────────────────────────────────────────
-//  COURT DRAWING — 3D TRACKER
-// ─────────────────────────────────────────────
-function drawTrackerCourt(ctx, w, h, awayColor, homeColor) {
-  const m = 30;
-  const cw = w - m * 2;
-  const ch = h - m * 2;
-
-  // Floor base
-  ctx.fillStyle = '#E8C97A';
-  ctx.fillRect(m, m, cw, ch);
-
-  // Wood grain
-  ctx.save();
-  ctx.strokeStyle = 'rgba(180, 140, 70, 0.22)';
-  ctx.lineWidth = 1;
-  for (let y = m; y < m + ch; y += 8) {
-    ctx.beginPath(); ctx.moveTo(m, y); ctx.lineTo(m + cw, y); ctx.stroke();
-  }
-  ctx.restore();
-
-  // Team color gradient halves
-  if (awayColor && awayColor !== '000000') {
-    ctx.fillStyle = hexToRgba(awayColor, 0.13);
-    ctx.fillRect(m, m, cw / 2, ch);
-  }
-  if (homeColor && homeColor !== '000000') {
-    ctx.fillStyle = hexToRgba(homeColor, 0.13);
-    ctx.fillRect(m + cw / 2, m, cw / 2, ch);
-  }
-
-  // Draw lines same as flat court
-  const lc = '#5a3e1b';
-  ctx.strokeStyle = lc;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(m, m, cw, ch);
-  ctx.beginPath();
-  ctx.moveTo(m + cw / 2, m); ctx.lineTo(m + cw / 2, m + ch); ctx.stroke();
-
-  const sx = cw / 94;
-  const sy = ch / 50;
-  const mid = m + ch / 2;
-  ctx.beginPath();
-  ctx.arc(m + cw / 2, mid, 6 * sx, 0, Math.PI * 2);
-  ctx.stroke();
-
-  drawHalfCourtFlat(ctx, m, m, cw, ch, sx, sy, lc, 'left');
-  drawHalfCourtFlat(ctx, m, m, cw, ch, sx, sy, lc, 'right');
-}
-
-// ─────────────────────────────────────────────
-//  COORDINATE MAPPING
-// ─────────────────────────────────────────────
-function espnToCanvas(espnX, espnY, w, h) {
-  const m = 30;
-  const cw = w - m * 2;
-  const ch = h - m * 2;
-  const cx = m + (espnX / 100) * cw;
-  const cy = m + (espnY / 50) * ch;
-  return { x: cx, y: cy };
-}
-
-// ─────────────────────────────────────────────
-//  SHOT RENDERING
-// ─────────────────────────────────────────────
-function redrawShotChart() {
-  shotCtx.clearRect(0, 0, CW, CH);
-  drawFlatCourt(shotCtx, CW, CH);
-
-  for (const shot of state.shots) {
-    drawShotDot(shotCtx, shot, CW, CH, false);
-  }
-}
-
-function drawShotDot(ctx, shot, w, h, animate) {
-  const pos = espnToCanvas(shot.x, shot.y, w, h);
-  const teamInfo = state.teams[shot.teamId] || {};
-  const color = teamInfo.color ? '#' + teamInfo.color : '#cc0000';
-  const r = 6;
-
-  ctx.save();
-  if (shot.made) {
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.85;
+  ctx.arc(px, py, r, 0, Math.PI * 2);
+  if (made) {
+    ctx.fillStyle = teamColor;
     ctx.fill();
   } else {
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = teamColor;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
   }
-  ctx.restore();
 }
 
-function animateShotDot(shot) {
-  const pos = espnToCanvas(shot.x, shot.y, CW, CH);
-  const teamInfo = state.teams[shot.teamId] || {};
-  const color = teamInfo.color ? '#' + teamInfo.color : '#cc0000';
-  const r = 6;
-  const startTime = performance.now();
-  const duration = 200;
-
-  function frame(now) {
-    const t = Math.min((now - startTime) / duration, 1);
-    redrawShotChart();
-    shotCtx.save();
-    shotCtx.globalAlpha = t * 0.85;
-    if (shot.made) {
-      shotCtx.beginPath();
-      shotCtx.arc(pos.x, pos.y, r * t, 0, Math.PI * 2);
-      shotCtx.fillStyle = color;
-      shotCtx.fill();
-    } else {
-      shotCtx.beginPath();
-      shotCtx.arc(pos.x, pos.y, r * t, 0, Math.PI * 2);
-      shotCtx.strokeStyle = color;
-      shotCtx.lineWidth = 2;
-      shotCtx.stroke();
-    }
-    shotCtx.restore();
-    if (t < 1) requestAnimationFrame(frame);
-    else redrawShotChart();
-  }
-  requestAnimationFrame(frame);
+// ============================================================
+// FULL SHOT CHART
+// ============================================================
+function drawCourtOnly() {
+  const canvas = document.getElementById('court-canvas');
+  const W = canvas.offsetWidth || canvas.clientWidth || 700;
+  const H = 260;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  drawFullCourt(ctx, W, H);
 }
 
-function showScorePopup(value, x, y, color) {
-  const el = document.createElement('div');
-  el.className = 'score-popup';
-  el.textContent = '+' + value;
-  el.style.color = color || '#cc0000';
-  el.style.left = (x - 10) + 'px';
-  el.style.top = (y - 30) + 'px';
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1600);
-}
+function drawFullCourt(ctx, W, H) {
+  // Floor
+  ctx.fillStyle = '#E8C97A';
+  ctx.fillRect(0, 0, W, H);
 
-// ─────────────────────────────────────────────
-//  TRACKER RENDERING
-// ─────────────────────────────────────────────
-let ballAnimFrame = null;
-let currentBallCanvas = null; // {x, y} in canvas coords
-let arcPoints = null;
-
-function renderTracker() {
-  const awayTeam = Object.values(state.teams).find(t => t.homeAway === 'away') || {};
-  const homeTeam = Object.values(state.teams).find(t => t.homeAway === 'home') || {};
-
-  trackerCtx.clearRect(0, 0, CW, CH);
-  drawTrackerCourt(trackerCtx, CW, CH, awayTeam.color, homeTeam.color);
-
-  // Draw arc if exists
-  if (arcPoints) {
-    drawDashedArc(trackerCtx, arcPoints.from, arcPoints.to);
-  }
-
-  // Draw ball
-  if (currentBallCanvas) {
-    drawBall(trackerCtx, currentBallCanvas.x, currentBallCanvas.y);
-  }
-}
-
-function drawDashedArc(ctx, from, to) {
-  ctx.save();
-  ctx.setLineDash([6, 4]);
-  ctx.strokeStyle = 'rgba(200, 50, 50, 0.7)';
-  ctx.lineWidth = 2;
-
-  const mx = (from.x + to.x) / 2;
-  const my = Math.min(from.y, to.y) - 40;
-
-  ctx.beginPath();
-  ctx.moveTo(from.x, from.y);
-  ctx.quadraticCurveTo(mx, my, to.x, to.y);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawBall(ctx, x, y) {
-  const rings = [
-    { r: 14, color: '#cc0000' },
-    { r: 10, color: '#fff' },
-    { r: 6,  color: '#cc0000' },
-    { r: 3,  color: '#fff' },
-  ];
-  for (const ring of rings) {
+  // Wood grain lines (subtle)
+  ctx.strokeStyle = 'rgba(150,90,30,0.12)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < H; i += 6) {
     ctx.beginPath();
-    ctx.arc(x, y, ring.r, 0, Math.PI * 2);
-    ctx.fillStyle = ring.color;
-    ctx.fill();
+    ctx.moveTo(0, i);
+    ctx.lineTo(W, i);
+    ctx.stroke();
   }
-  // Shadow
-  ctx.save();
-  ctx.globalAlpha = 0.2;
+
+  const lc = '#5a3e1b';
+  ctx.strokeStyle = lc;
+  ctx.lineWidth = 1.5;
+
+  // Outer boundary
+  ctx.strokeRect(2, 2, W - 4, H - 4);
+
+  // Half-court line
   ctx.beginPath();
-  ctx.ellipse(x, y + 16, 14, 5, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#000';
-  ctx.fill();
-  ctx.restore();
+  ctx.moveTo(W / 2, 2);
+  ctx.lineTo(W / 2, H - 2);
+  ctx.stroke();
+
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(W / 2, H / 2, H * 0.13, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Paint / key boxes
+  const paintW = W * 0.18, paintH = H * 0.44;
+  const paintY = (H - paintH) / 2;
+  ctx.strokeRect(2, paintY, paintW, paintH);
+  ctx.strokeRect(W - 2 - paintW, paintY, paintW, paintH);
+
+  // Free throw circles (top halves only)
+  ctx.beginPath();
+  ctx.arc(2 + paintW, H / 2, H * 0.13, Math.PI / 2, (3 * Math.PI) / 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(W - 2 - paintW, H / 2, H * 0.13, -Math.PI / 2, Math.PI / 2);
+  ctx.stroke();
+
+  // Baskets (backboard + rim)
+  const rimR = H * 0.05;
+  const rimX1 = 2 + paintW;
+  const rimX2 = W - 2 - paintW;
+  // Backboards
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(H * 0.04, H / 2 - H * 0.09); ctx.lineTo(H * 0.04, H / 2 + H * 0.09); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W - H * 0.04, H / 2 - H * 0.09); ctx.lineTo(W - H * 0.04, H / 2 + H * 0.09); ctx.stroke();
+  // Rims
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(rimX1, H / 2, rimR, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(rimX2, H / 2, rimR, 0, Math.PI * 2); ctx.stroke();
+
+  // Three-point arcs
+  const tpR = H * 0.44;
+  ctx.beginPath();
+  ctx.arc(rimX1, H / 2, tpR, -Math.PI * 0.38, Math.PI * 0.38);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(rimX2, H / 2, tpR, Math.PI - Math.PI * 0.38, Math.PI + Math.PI * 0.38);
+  ctx.stroke();
 }
 
-function animateBallTo(target) {
-  if (ballAnimFrame) cancelAnimationFrame(ballAnimFrame);
-  const from = currentBallCanvas ? { ...currentBallCanvas } : { ...target };
-  const oldArc = arcPoints;
-  const start = performance.now();
-  const duration = 600;
-
-  function frame(now) {
-    const t = ease(Math.min((now - start) / duration, 1));
-    currentBallCanvas = {
-      x: from.x + (target.x - from.x) * t,
-      y: from.y + (target.y - from.y) * t,
-    };
-    renderTracker();
-    if (t < 1) ballAnimFrame = requestAnimationFrame(frame);
-    else {
-      ballAnimFrame = null;
-      arcPoints = null;
-      renderTracker();
-    }
-  }
-  requestAnimationFrame(frame);
-}
-
-function ease(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
-
-// ─────────────────────────────────────────────
-//  PBP LIST
-// ─────────────────────────────────────────────
-function updatePBP(plays) {
-  const list = document.getElementById('pbp-list');
-  list.innerHTML = '';
-
-  const recent = plays.slice(-40).reverse();
-  recent.forEach((play, i) => {
-    const item = document.createElement('div');
-    item.className = 'pbp-item' + (i === 0 ? ' latest' : '');
-
-    const teamInfo = state.teams[play.team && play.team.id] || {};
-    const color = teamInfo.color ? '#' + teamInfo.color : '#aaa';
-    const typeText = (play.type && play.type.text) || 'Play';
-    const desc = play.text || '';
-    const period = play.period ? `Q${play.period.number}` : '';
-    const clock = play.clock ? play.clock.displayValue : '';
-    const score = (play.awayScore != null && play.homeScore != null)
-      ? `${play.awayScore}-${play.homeScore}` : '';
-
-    item.innerHTML = `
-      <div class="pbp-row1">
-        <span class="pbp-team-dot" style="background:${color}"></span>
-        <span class="pbp-type">${escHtml(typeText)}</span>
-        <span class="pbp-score">${escHtml(score)}</span>
-      </div>
-      <div class="pbp-time">${escHtml(period)}${period && clock ? ' &bull; ' : ''}${escHtml(clock)}</div>
-      <div class="pbp-desc">${escHtml(desc)}</div>
-    `;
-    list.appendChild(item);
+function addShotToChart(play, animate) {
+  if (!play.coordinate) return;
+  shots.push({
+    x: play.coordinate.x,
+    y: play.coordinate.y,
+    made: !!play.scoringPlay,
+    color: getTeamColor(play.team?.id),
+    scoreValue: play.scoreValue,
+    animate
   });
 }
 
-// ─────────────────────────────────────────────
-//  ESPN API CALLS
-// ─────────────────────────────────────────────
-async function fetchGames() {
-  const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/${state.sport}/scoreboard`;
-  try {
-    const r = await fetch(url);
-    const data = await r.json();
-    const events = data.events || [];
-    const sel = document.getElementById('game-select');
-    sel.innerHTML = '';
-    if (!events.length) {
-      sel.innerHTML = '<option>-- No live games --</option>';
-      return;
-    }
-    events.forEach(ev => {
-      const comp = ev.competitions && ev.competitions[0];
-      const away = comp && comp.competitors && comp.competitors.find(c => c.homeAway === 'away');
-      const home = comp && comp.competitors && comp.competitors.find(c => c.homeAway === 'home');
-      const awayA = away && away.team && away.team.abbreviation || '?';
-      const homeA = home && home.team && home.team.abbreviation || '?';
-      const status = ev.status && ev.status.type && ev.status.type.shortDetail || '';
-      const opt = document.createElement('option');
-      opt.value = ev.id;
-      opt.textContent = `${awayA} @ ${homeA} (${status})`;
-      sel.appendChild(opt);
-    });
-    // Auto-select first
-    state.gameId = sel.value;
-  } catch (e) {
-    console.error('fetchGames error', e);
-    document.getElementById('game-select').innerHTML = '<option>-- Error loading --</option>';
-  }
-}
+function redrawChart() {
+  const canvas = document.getElementById('court-canvas');
+  const W = canvas.width || canvas.offsetWidth || 700;
+  const H = canvas.height || 260;
+  const ctx = canvas.getContext('2d');
+  drawFullCourt(ctx, W, H);
 
-async function fetchSummary() {
-  if (!state.gameId) return;
-  const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/${state.sport}/summary?event=${state.gameId}`;
-  try {
-    const r = await fetch(url);
-    const data = await r.json();
-
-    // Extract teams
-    const teams = {};
-    const bsTeams = (data.boxscore && data.boxscore.teams) || [];
-    bsTeams.forEach(bt => {
-      const t = bt.team;
-      if (t) {
-        teams[t.id] = {
-          id: t.id,
-          abbr: t.abbreviation || '?',
-          color: t.color || 'aaaaaa',
-          homeAway: bt.homeAway || 'away',
-        };
-      }
-    });
-    // Also parse from header competitors
-    const comps = (data.header && data.header.competitions && data.header.competitions[0] && data.header.competitions[0].competitors) || [];
-    comps.forEach(c => {
-      const t = c.team;
-      if (t && !teams[t.id]) {
-        teams[t.id] = {
-          id: t.id,
-          abbr: t.abbreviation || '?',
-          color: t.color || 'aaaaaa',
-          homeAway: c.homeAway || 'away',
-        };
-      } else if (t && teams[t.id]) {
-        teams[t.id].homeAway = c.homeAway || teams[t.id].homeAway;
-      }
-    });
-
-    state.teams = teams;
-
-    // Update header
-    const awayTeam = Object.values(teams).find(t => t.homeAway === 'away') || {};
-    const homeTeam = Object.values(teams).find(t => t.homeAway === 'home') || {};
-
-    const awayComp = comps.find(c => c.homeAway === 'away');
-    const homeComp = comps.find(c => c.homeAway === 'home');
-
-    const awayScore = awayComp && awayComp.score || '0';
-    const homeScore = homeComp && homeComp.score || '0';
-
-    setEl('away-abbr', awayTeam.abbr || 'AWAY');
-    setEl('home-abbr', homeTeam.abbr || 'HOME');
-    setEl('away-score', awayScore);
-    setEl('home-score', homeScore);
-    styleEl('away-abbr', 'color', awayTeam.color ? '#' + awayTeam.color : '#333');
-    styleEl('home-abbr', 'color', homeTeam.color ? '#' + homeTeam.color : '#333');
-
-    // Clock
-    const status = data.header && data.header.competitions && data.header.competitions[0] && data.header.competitions[0].status;
-    if (status) {
-      const periodNum = status.period || (status.type && status.type.period);
-      setEl('period-display', periodNum ? `Q${periodNum}` : (status.type && status.type.shortDetail) || '--');
-      setEl('clock-display', status.displayClock || status.clock || (status.type && status.type.shortDetail) || '--:--');
-    }
-
-    // Legend colors
-    const awayC = awayTeam.color ? '#' + awayTeam.color : '#cc0000';
-    const homeC = homeTeam.color ? '#' + homeTeam.color : '#0057b7';
-    styleEl('legend-away-made', 'background', awayC);
-    styleEl('legend-away-miss', 'border-color', awayC);
-    styleEl('legend-home-made', 'background', homeC);
-    styleEl('legend-home-miss', 'border-color', homeC);
-    setEl('legend-away-label', (awayTeam.abbr || 'Away') + ' Made');
-    setEl('legend-home-label', (homeTeam.abbr || 'Home') + ' Made');
-
-    // Plays
-    const plays = (data.plays || []).filter(p => p.coordinate && p.coordinate.x != null);
-    state.plays = data.plays || [];
-
-    if (!state.initialLoadDone) {
-      // Silent plot of all existing shots
-      state.shots = [];
-      for (const play of plays) {
-        if (play.coordinate) {
-          const isMade = !!play.scoringPlay;
-          state.shots.push({
-            x: play.coordinate.x,
-            y: play.coordinate.y,
-            made: isMade,
-            teamId: play.team && play.team.id,
-            value: play.scoreValue || 2,
-            id: play.id,
-          });
-        }
-      }
-      // Set ball to last play position
-      if (plays.length) {
-        const last = plays[plays.length - 1];
-        const pos = espnToCanvas(last.coordinate.x, last.coordinate.y, CW, CH);
-        currentBallCanvas = pos;
-        state.ballPos = pos;
-      }
-      // Set last seen ID
-      const allPlays = data.plays || [];
-      if (allPlays.length) {
-        state.lastSeenPlayId = allPlays[allPlays.length - 1].id;
-      }
-      state.initialLoadDone = true;
-
-      redrawShotChart();
-      renderTracker();
-      updatePBP(state.plays);
-      setStatus('Live - tracking new plays');
+  shots.forEach(s => {
+    const px = (s.x / 100) * W;
+    const py = (s.y / 50) * H;
+    const r = 7;
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, Math.PI * 2);
+    if (s.made) {
+      ctx.fillStyle = s.color;
+      ctx.fill();
     } else {
-      // Only process new plays
-      const allPlays = data.plays || [];
-      const newPlays = [];
-      let foundNew = false;
-
-      for (const play of allPlays) {
-        if (play.id === state.lastSeenPlayId) { foundNew = true; continue; }
-        if (foundNew || state.lastSeenPlayId === null) newPlays.push(play);
-      }
-
-      // If lastSeenPlayId not found (reset?), skip
-      if (!foundNew && state.lastSeenPlayId !== null) {
-        state.plays = allPlays;
-        updatePBP(state.plays);
-        renderTracker();
-        return;
-      }
-
-      state.plays = allPlays;
-
-      for (const play of newPlays) {
-        if (!play.coordinate) continue;
-
-        // Shot chart dot with animation
-        const isMade = !!play.scoringPlay;
-        const shot = {
-          x: play.coordinate.x,
-          y: play.coordinate.y,
-          made: isMade,
-          teamId: play.team && play.team.id,
-          value: play.scoreValue || 2,
-          id: play.id,
-        };
-        state.shots.push(shot);
-        animateShotDot(shot);
-
-        // Score popup
-        if (isMade && play.scoreValue) {
-          const pos = espnToCanvas(shot.x, shot.y, CW, CH);
-          const rect = shotCanvas.getBoundingClientRect();
-          const teamInfo = state.teams[shot.teamId] || {};
-          const color = teamInfo.color ? '#' + teamInfo.color : '#cc0000';
-          showScorePopup(play.scoreValue, rect.left + pos.x, rect.top + pos.y, color);
-        }
-
-        // Ball tracker
-        const newPos = espnToCanvas(play.coordinate.x, play.coordinate.y, CW, CH);
-        if (isMade || (play.type && play.type.text && play.type.text.toLowerCase().includes('shot'))) {
-          arcPoints = { from: currentBallCanvas || newPos, to: newPos };
-        }
-        animateBallTo(newPos);
-      }
-
-      if (newPlays.length) {
-        state.lastSeenPlayId = allPlays[allPlays.length - 1].id;
-        updatePBP(state.plays);
-      }
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
-  } catch (e) {
-    console.error('fetchSummary error', e);
-    setStatus('Error fetching data');
-  }
-}
-
-// ─────────────────────────────────────────────
-//  CONTROLS
-// ─────────────────────────────────────────────
-document.querySelectorAll('.sport-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.sport-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.sport = btn.dataset.sport;
-    stopTracking();
-    state.initialLoadDone = false;
-    state.lastSeenPlayId = null;
-    state.shots = [];
-    state.plays = [];
-    fetchGames();
   });
-});
+}
 
-document.getElementById('game-select').addEventListener('change', e => {
-  state.gameId = e.target.value;
-  stopTracking();
-  state.initialLoadDone = false;
-  state.lastSeenPlayId = null;
-  state.shots = [];
-  state.plays = [];
-  redrawShotChart();
-  renderTracker();
-  updatePBP([]);
-});
-
-document.getElementById('start-btn').addEventListener('click', () => {
-  if (state.running) {
-    stopTracking();
-  } else {
-    startTracking();
-  }
-});
-
-document.getElementById('clear-btn').addEventListener('click', () => {
-  state.shots = [];
-  state.initialLoadDone = false;
-  state.lastSeenPlayId = null;
-  currentBallCanvas = null;
-  arcPoints = null;
-  redrawShotChart();
-  renderTracker();
-  updatePBP([]);
-});
-
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById(btn.dataset.tab).classList.add('active');
-    state.currentView = btn.dataset.tab;
-    redrawShotChart();
-    renderTracker();
+function updateLegend() {
+  const legend = document.getElementById('chart-legend');
+  legend.innerHTML = '';
+  const teams = [];
+  if (teamData.away) teams.push({ side: 'away', data: teamData.away });
+  if (teamData.home) teams.push({ side: 'home', data: teamData.home });
+  teams.forEach(t => {
+    ['Made', 'Missed'].forEach(type => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      const dot = document.createElement('div');
+      dot.className = 'legend-dot' + (type === 'Missed' ? ' hollow' : '');
+      dot.style.backgroundColor = type === 'Made' ? t.data.color : 'transparent';
+      if (type === 'Missed') dot.style.borderColor = t.data.color;
+      item.appendChild(dot);
+      const lbl = document.createElement('span');
+      lbl.textContent = `${t.data.abbr} ${type}`;
+      item.appendChild(lbl);
+      legend.appendChild(item);
+    });
   });
+}
+
+// ============================================================
+// STATUS
+// ============================================================
+function setStatus(msg) {
+  document.getElementById('status-text').textContent = msg;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', () => {
+  // Resize observer for court canvas
+  const canvas = document.getElementById('court-canvas');
+  const ro = new ResizeObserver(() => {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 260;
+    redrawChart();
+  });
+  ro.observe(canvas);
+
+  drawCourtOnly();
+  loadGameList();
 });
-
-function startTracking() {
-  if (!state.gameId) { setStatus('Select a game first'); return; }
-  state.running = true;
-  document.getElementById('start-btn').textContent = 'Stop';
-  document.getElementById('start-btn').classList.add('running');
-  setStatus('Loading...');
-  fetchSummary();
-  state.intervalId = setInterval(fetchSummary, 8000);
-}
-
-function stopTracking() {
-  state.running = false;
-  clearInterval(state.intervalId);
-  state.intervalId = null;
-  document.getElementById('start-btn').textContent = 'Start';
-  document.getElementById('start-btn').classList.remove('running');
-  setStatus('Stopped');
-}
-
-// ─────────────────────────────────────────────
-//  UTILS
-// ─────────────────────────────────────────────
-function setEl(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
-function styleEl(id, prop, val) { const el = document.getElementById(id); if (el) el.style[prop] = val; }
-function setStatus(msg) { document.getElementById('status-msg').textContent = msg; }
-function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function hexToRgba(hex, alpha) {
-  hex = hex.replace('#', '');
-  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-  const r = parseInt(hex.substring(0,2), 16);
-  const g = parseInt(hex.substring(2,4), 16);
-  const b = parseInt(hex.substring(4,6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-// ─────────────────────────────────────────────
-//  INIT
-// ─────────────────────────────────────────────
-redrawShotChart();
-renderTracker();
-fetchGames();
 </script>
 </body>
 </html>
