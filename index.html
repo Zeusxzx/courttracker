@@ -967,6 +967,15 @@ function redrawChart() {
         ctx.lineWidth = 2.5;
         ctx.stroke();
       }
+      // Draw point value on the dot
+      if (s.scoreValue) {
+        ctx.globalAlpha = Math.min(opacity * 1.4, 1);
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${isNewest ? 9 : 7}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('+' + s.scoreValue, pos.x, pos.y);
+      }
     } else {
       ctx.strokeStyle = s.color;
       ctx.lineWidth = isNewest ? 2.5 : 2;
