@@ -335,6 +335,15 @@ let currentSport = 'ncaa';
 let currentGameId = null;
 let polling = false;
 let pollTimer = null;
+let lastUpdateTime = null;
+
+// Live "X sec ago" ticker
+setInterval(() => {
+  if (!polling || !lastUpdateTime) return;
+  const sec = Math.round((Date.now() - lastUpdateTime) / 1000);
+  if (sec < 5) setStatus('Live');
+  else setStatus(`Updated ${sec}s ago`);
+}, 1000);
 let lastSeenPlayId = null;
 let initialLoadDone = false;
 let teamData = {}; // { home: {abbr, color, logo, id}, away: {abbr, color, logo, id} }
@@ -452,7 +461,7 @@ function schedulePoll() {
       setStatus('Poll error, retrying...');
     }
     schedulePoll();
-  }, 5000);
+  }, 3000);
 }
 
 // ============================================================
@@ -514,7 +523,8 @@ async function fetchAndRender(isFirst) {
       }
     }
     updateLegend();
-    setStatus(`Updated ${new Date().toLocaleTimeString()}`);
+    lastUpdateTime = Date.now();
+    setStatus('Live');
   } catch(e) {
     setStatus(`Error: ${e.message}`);
   }
