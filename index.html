@@ -438,10 +438,16 @@ function stopPolling() {
 
 function schedulePoll() {
   if (!polling) return;
+  clearTimeout(pollTimer);
   pollTimer = setTimeout(async () => {
-    await fetchAndRender(false);
+    if (!polling) return;
+    try {
+      await fetchAndRender(false);
+    } catch(e) {
+      setStatus('Poll error, retrying...');
+    }
     schedulePoll();
-  }, 8000);
+  }, 5000);
 }
 
 // ============================================================
@@ -882,9 +888,38 @@ function addShotToChart(play, animate) {
     y: play.coordinate.y,
     made: !!play.scoringPlay,
     color: getTeamColor(play.team?.id),
+    teamId: play.team?.id,
     scoreValue: play.scoreValue,
     animate
   });
+}
+
+// ESPN coordinate mapping:
+// x = feet from shooting basket (0 = at basket, ~47 = half court)
+// y = feet from one sideline (0-50, center = 25)
+// Away team shoots at LEFT basket, home team shoots at RIGHT basket
+function espnToCanvas(espnX, espnY, teamId, W, H) {
+  const margin = 4;
+  const courtW = W - margin * 2;
+  const courtH = H - margin * 2;
+  const halfW = courtW / 2;
+  const COURT_HALF = 47; // feet
+  const COURT_WIDTH = 50; // feet sideline to sideline
+
+  const side = getTeamSide(teamId);
+  const xFrac = Math.min(espnX / COURT_HALF, 1); // 0=basket, 1=halfcourt
+  const yFrac = Math.max(0, Math.min(espnY / COURT_WIDTH, 1));
+
+  let px, py;
+  if (side === 'away') {
+    // Away shoots at left basket — x goes left to right toward center
+    px = margin + xFrac * halfW;
+  } else {
+    // Home shoots at right basket — x goes right to left toward center
+    px = margin + courtW - xFrac * halfW;
+  }
+  py = margin + yFrac * courtH;
+  return { x: px, y: py };
 }
 
 function redrawChart() {
@@ -898,26 +933,23 @@ function redrawChart() {
   const MAX_VISIBLE = 8;
   const visible = shots.slice(-MAX_VISIBLE);
   visible.forEach((s, i) => {
-    const px = (s.x / 100) * W;
-    const py = (s.y / 50) * H;
+    const pos = espnToCanvas(s.x, s.y, s.teamId, W, H);
     const isNewest = i === visible.length - 1;
     const r = isNewest ? 10 : 7;
-    // Opacity: newest = 1.0, oldest = 0.15
-    const opacity = 0.15 + (i / (MAX_VISIBLE - 1)) * 0.85;
+    const opacity = MAX_VISIBLE === 1 ? 1 : 0.2 + (i / (MAX_VISIBLE - 1)) * 0.8;
     ctx.save();
     ctx.globalAlpha = opacity;
     ctx.beginPath();
-    ctx.arc(px, py, r, 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
     if (s.made) {
       ctx.fillStyle = s.color;
       ctx.fill();
-      // Ring on newest made shot
       if (isNewest) {
-        ctx.globalAlpha = opacity * 0.4;
+        ctx.globalAlpha = opacity * 0.35;
         ctx.beginPath();
-        ctx.arc(px, py, r + 5, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, r + 6, 0, Math.PI * 2);
         ctx.strokeStyle = s.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
       }
     } else {
