@@ -227,12 +227,16 @@
 
   /* CONTROLS */
   #controls {
-    max-width: 800px;
-    margin: 12px auto 24px;
+    position: sticky;
+    top: 88px;
+    z-index: 99;
+    max-width: 100%;
+    margin: 0;
     background: #fff;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    padding: 10px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    padding: 8px 16px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -297,6 +301,18 @@
   </div>
 </div>
 
+<!-- CONTROLS (sticky under score header) -->
+<div id="controls">
+  <span class="ctrl-label">Sport:</span>
+  <div class="toggle-group">
+    <button class="toggle-btn active" id="btn-ncaa" onclick="setSport('ncaa')">NCAA</button>
+    <button class="toggle-btn" id="btn-nba" onclick="setSport('nba')">NBA</button>
+  </div>
+  <select id="game-select" onchange="selectGame(this.value)"></select>
+  <button id="start-stop-btn" onclick="togglePolling()">Start</button>
+  <span id="status-text">Select a game to begin</span>
+</div>
+
 <!-- SHOT CHART -->
 <div id="shot-chart-section">
   <h2>Shot Chart</h2>
@@ -311,17 +327,6 @@
 </div>
 
 <!-- CONTROLS -->
-<div id="controls">
-  <span class="ctrl-label">Sport:</span>
-  <div class="toggle-group">
-    <button class="toggle-btn active" id="btn-ncaa" onclick="setSport('ncaa')">NCAA</button>
-    <button class="toggle-btn" id="btn-nba" onclick="setSport('nba')">NBA</button>
-  </div>
-  <select id="game-select" onchange="selectGame(this.value)"></select>
-  <button id="start-stop-btn" onclick="togglePolling()">Start</button>
-  <span id="status-text">Select a game to begin</span>
-</div>
-
 <script>
 // ============================================================
 // STATE
