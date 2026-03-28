@@ -82,11 +82,11 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
   }
 
-  .view { display: none; flex: 1; flex-direction: column; }
-  .view.active { display: flex; }
+  .view { display: none; flex: 1; flex-direction: column; overflow: visible; }
+  .view.active { display: flex; overflow: visible; }
 
   /* ── Shot Chart View ── */
   #shot-chart-view {
@@ -128,7 +128,7 @@
   #play-tracker-view {
     flex-direction: row;
     gap: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   #tracker-left {
@@ -139,20 +139,22 @@
     justify-content: center;
     padding: 20px;
     background: #f5f5f5;
-    overflow: hidden;
   }
 
   #court-3d-wrapper {
-    perspective: 800px;
+    perspective: 1200px;
     width: 100%;
-    max-width: 700px;
+    max-width: 760px;
+    overflow: visible;
   }
 
   #court-3d-inner {
-    transform: rotateX(48deg);
-    transform-origin: center bottom;
+    transform: rotateX(38deg) scale(0.95);
+    transform-origin: center center;
+    transform-style: preserve-3d;
     width: 100%;
     position: relative;
+    overflow: visible;
   }
 
   #tracker-canvas {
@@ -929,8 +931,9 @@ async function fetchSummary() {
     // Clock
     const status = data.header && data.header.competitions && data.header.competitions[0] && data.header.competitions[0].status;
     if (status) {
-      setEl('period-display', status.period ? `Q${status.period}` : '--');
-      setEl('clock-display', (status.displayClock) || '--:--');
+      const periodNum = status.period || (status.type && status.type.period);
+      setEl('period-display', periodNum ? `Q${periodNum}` : (status.type && status.type.shortDetail) || '--');
+      setEl('clock-display', status.displayClock || status.clock || (status.type && status.type.shortDetail) || '--:--');
     }
 
     // Legend colors
@@ -1113,7 +1116,7 @@ function startTracking() {
   document.getElementById('start-btn').classList.add('running');
   setStatus('Loading...');
   fetchSummary();
-  state.intervalId = setInterval(fetchSummary, 15000);
+  state.intervalId = setInterval(fetchSummary, 8000);
 }
 
 function stopTracking() {
