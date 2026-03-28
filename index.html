@@ -894,20 +894,38 @@ function redrawChart() {
   const ctx = canvas.getContext('2d');
   drawFullCourt(ctx, W, H);
 
-  shots.forEach(s => {
+  // Only show last 8 shots, fade older ones out
+  const MAX_VISIBLE = 8;
+  const visible = shots.slice(-MAX_VISIBLE);
+  visible.forEach((s, i) => {
     const px = (s.x / 100) * W;
     const py = (s.y / 50) * H;
-    const r = 7;
+    const isNewest = i === visible.length - 1;
+    const r = isNewest ? 10 : 7;
+    // Opacity: newest = 1.0, oldest = 0.15
+    const opacity = 0.15 + (i / (MAX_VISIBLE - 1)) * 0.85;
+    ctx.save();
+    ctx.globalAlpha = opacity;
     ctx.beginPath();
     ctx.arc(px, py, r, 0, Math.PI * 2);
     if (s.made) {
       ctx.fillStyle = s.color;
       ctx.fill();
+      // Ring on newest made shot
+      if (isNewest) {
+        ctx.globalAlpha = opacity * 0.4;
+        ctx.beginPath();
+        ctx.arc(px, py, r + 5, 0, Math.PI * 2);
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     } else {
       ctx.strokeStyle = s.color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = isNewest ? 2.5 : 2;
       ctx.stroke();
     }
+    ctx.restore();
   });
 }
 
